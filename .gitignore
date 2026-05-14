@@ -1,0 +1,9 @@
+node_modules/
+.env
+uploads/
+*.log
+.DS_Store
+tunnel-backend.log
+tunnel-frontend.log
+share-mode.bat
+start-tunnels.bat

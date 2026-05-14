@@ -1,0 +1,103 @@
+import os
+import re
+
+def process_file(filepath: str) -> None:
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception:
+        return
+
+    original = content
+    
+    if '"use client"' not in content and "'use client'" not in content:
+        content = '"use client";\n' + content
+
+    if 'react-router-dom' in content:
+        pattern = r"import\s+\{([^}]+)\}\s+from\s+['\"]react-router-dom['\"];?"
+        import_match = re.search(pattern, content)
+        if import_match:
+            raw_imports = import_match.group(1).split(',')
+            imports = [i.strip() for i in raw_imports]
+            next_imports = []
+            
+            nav_imports = set()
+            has_link = False
+            
+            if 'Link' in imports or 'NavLink' in imports:
+                has_link = True
+            
+            if 'useNavigate' in imports or 'Navigate' in imports:
+                nav_imports.add('useRouter')
+            if 'useLocation' in imports:
+                nav_imports.add('usePathname')
+            if 'useParams' in imports:
+                nav_imports.add('useParams')
+            
+            if has_link:
+                next_imports.append("import Link from 'next/link';")
+                
+            if nav_imports:
+                joined_nav = ', '.join(sorted(nav_imports))
+                # Using format() instead of f-string to prevent VS Code brace parsing errors
+                next_imports.append("import {{ {0} }} from 'next/navigation';".format(joined_nav))
+                
+            content = content.replace(import_match.group(0), '\n'.join(next_imports))
+
+    # Replace Link to with Link href
+    content = content.replace('<Link to="', '<Link href="')
+    content = content.replace("<Link to={'", "<Link href={'")
+    content = content.replace('<Link to={`', '<Link href={`')
+    content = content.replace('<Link to={', '<Link href={')
+    
+    # Replace NavLink with Link
+    content = content.replace('<NavLink', '<Link')
+    content = content.replace('</NavLink>', '</Link>')
+    content = content.replace('NavLink', 'Link')
+
+    # Replace navigate -> router
+    content = content.replace('const navigate = useNavigate()', 'const router = useRouter()')
+    content = re.sub(r'\bnavigate\(', 'router.push(', content)
+    
+    # Replace useLocation -> usePathname
+    content = content.replace('const location = useLocation()', 'const pathname = usePathname()')
+    content = content.replace('location.pathname', 'pathname')
+    
+    if content != original:
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+        except Exception:
+            pass
+
+def main() -> None:
+    # Process all JS files in src/pages and src/components
+    for root, _, files in os.walk('src'):
+        if 'app' in root:
+            continue
+        for file in files:
+            if file.endswith('.js') or file.endswith('.jsx'):
+                process_file(os.path.join(root, file))
+
+    # Fix SEO.js
+    seo_path = os.path.join("src", "components", "common", "SEO.js")
+    if os.path.exists(seo_path):
+        try:
+            with open(seo_path, "w", encoding='utf-8') as f:
+                f.write('export default function SEO() { return null; }\n')
+        except Exception:
+            pass
+
+    # Fix ScrollToTop.js
+    scroll_path = os.path.join("src", "components", "common", "ScrollToTop.js")
+    if os.path.exists(scroll_path):
+        try:
+            with open(scroll_path, "w", encoding='utf-8') as f:
+                f.write('export default function ScrollToTop() { return null; }\n')
+        except Exception:
+            pass
+
+    print("Refactored Navigation Hooks and Links!")
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log*
+.env
+.env.*
+coverage
+*.log
+uploads/*
+!uploads/.gitkeep
+.git
+.gitignore
+.vscode
+agent
+*.md
+tests
+tunnel-*.log

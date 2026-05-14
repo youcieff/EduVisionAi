@@ -1,0 +1,41 @@
+# ================================================
+# EduVisionAI — Docker Compose
+# Orchestrates the app + MongoDB
+# ================================================
+
+services:
+  # MongoDB Database
+  mongo:
+    image: mongo:7
+    container_name: eduvision-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: eduvisionai
+
+  # EduVisionAI Application
+  app:
+    build: .
+    container_name: eduvision-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    env_file:
+      - ./backend/.env
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/eduvisionai
+      - NODE_ENV=production
+      - PORT=5000
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  mongo_data:
+    driver: local
+  uploads_data:
+    driver: local
