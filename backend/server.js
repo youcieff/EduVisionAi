@@ -176,16 +176,25 @@ io.on('connection', (socket) => {
   });
 
   socket.on('register', (userId) => {
+    console.log(`🔌 [Socket] Registering user ID: ${userId} with socket ID: ${socket.id}`);
     socket.userId = userId;
-    onlineUsers.set(userId, socket.id);
+    onlineUsers.set(String(userId), socket.id);
   });
 
   socket.on('send-invite', ({ toUserId, roomId, videoTitle, fromUsername }) => {
-    const targetSocketId = onlineUsers.get(toUserId);
+    console.log(`📩 [Socket] Invite sent from ${fromUsername} to user ID: ${toUserId} for room: ${roomId}`);
+    const key = String(toUserId);
+    const targetSocketId = onlineUsers.get(key);
+    console.log(`🎯 [Socket] Target socket ID found: ${targetSocketId || 'NONE'}`);
+    
     if (targetSocketId) {
+      console.log(`✅ [Socket] Emitting receive-invite to ${targetSocketId}`);
       io.to(targetSocketId).emit('receive-invite', { roomId, videoTitle, fromUsername });
+    } else {
+      console.log(`❌ [Socket] Failed to find online user target for ${toUserId}`);
     }
   });
+
 
   socket.on('disconnect', () => {
     // Remove from global map if registered

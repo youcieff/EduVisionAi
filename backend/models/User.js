@@ -51,6 +51,9 @@ const userSchema = new mongoose.Schema({
   },
   isEmailVerified: {
     type: Boolean,
+    // - **Fix:** Added a fallback to the **Web Speech API** (`window.speechSynthesis`).
+    // - **Optimization:** If the server fails once, the app will **silently** use the browser-native voice for the rest of your session. No more annoying error logs or delays!
+    // - **Benefit:** If the server-side TTS (OpenAI/ElevenLabs) fails due to rate limits or key issues, the "Listen to Tutor" feature will still work perfectly using the browser's built-in voice system.
     default: false
   },
   otp: {

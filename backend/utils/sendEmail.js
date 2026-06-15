@@ -1,14 +1,25 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.SMTP_EMAIL,
     pass: process.env.SMTP_PASSWORD,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
+// Warm up transporter on module load
+transporter.verify()
+  .then(() => console.log('✅ SMTP transporter ready'))
+  .catch(err => console.error('❌ SMTP transporter error:', err.message));
+
 const sendOtpEmail = async (to, otp, username) => {
+  console.log(`📧 Sending OTP to ${to}...`);
   const mailOptions = {
     from: `"EduVisionAI" <${process.env.SMTP_EMAIL}>`,
     to,

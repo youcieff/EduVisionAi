@@ -21,11 +21,24 @@ router.get('/search', protect, async (req, res) => {
   try {
     const q = req.query.q;
     if(!q || q.length < 2) return res.status(200).json({ status: 'success', data: { users: [] }});
+    
     const users = await User.find({ 
-      name: { $regex: q, $options: 'i' },
-      _id: { $ne: req.user.id } 
-    }).select('name avatar role isPremium').limit(10);
-    res.status(200).json({ status: 'success', data: { users }});
+      $or: [
+        { username: { $regex: q, $options: 'i' } },
+        { fullName: { $regex: q, $options: 'i' } }
+      ],
+      _id: { $ne: req.user._id } 
+    })
+    .select('username fullName avatar role isPremium')
+    .limit(10);
+
+    // Add a virtual name field for frontend compatibility
+    const mappedUsers = users.map(u => ({
+      ...u._doc,
+      name: u.username || u.fullName
+    }));
+
+    res.status(200).json({ status: 'success', data: { users: mappedUsers }});
   } catch(error) {
     res.status(500).json({ status: 'error', message: 'Failed to search users' });
   }

@@ -2,8 +2,11 @@
 import { create } from 'zustand';
 
 const useLanguageStore = create((set, get) => ({
-  lang: typeof window !== 'undefined' ? (localStorage.getItem('lang') || 'en') : 'en',
-  isRTL: typeof window !== 'undefined' ? ((localStorage.getItem('lang') || 'en') === 'ar') : false,
+  // Initialize with fixed values to match SSR (Server Side Rendering)
+  // This prevents the "Hydration failed" error in Next.js
+  lang: 'en',
+  isRTL: false,
+  hasHydrated: false, // Flag to track if we've loaded user preference
 
   setLang: (lang) => {
     localStorage.setItem('lang', lang);
@@ -16,8 +19,21 @@ const useLanguageStore = create((set, get) => ({
     set({ lang: newLang, isRTL: newLang === 'ar' });
   },
 
+  hydrate: () => {
+    if (typeof window !== 'undefined') {
+      const savedLang = localStorage.getItem('lang') || 'en';
+      set({ 
+        lang: savedLang, 
+        isRTL: savedLang === 'ar',
+        hasHydrated: true 
+      });
+    }
+  },
+
   t: (key) => {
-    const lang = get().lang;
+    const state = get();
+    // Optional: if not hydrated yet, we could return a placeholder or stay in English
+    const lang = state.lang;
     const keys = key.split('.');
     let value = translations[lang];
     for (const k of keys) {

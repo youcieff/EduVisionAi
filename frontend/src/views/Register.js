@@ -26,6 +26,8 @@ const Register = () => {
     const result = await register({ username, email, password, fullName, phone, specialization, university });
     if (result.success) {
       router.push(`/verify-otp?email=${encodeURIComponent(result.email)}`);
+    } else if (result.needsVerification) {
+      router.push(`/verify-otp?email=${encodeURIComponent(result.email)}`);
     }
   };
 

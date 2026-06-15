@@ -209,6 +209,26 @@ const VideoDetail = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  
+  // Load chat history from localStorage
+  useEffect(() => {
+    if (!id) return;
+    const savedChat = localStorage.getItem(`chat_${id}`);
+    if (savedChat) {
+      try {
+        setChatMessages(JSON.parse(savedChat));
+      } catch (e) {
+        console.error('Failed to parse saved chat', e);
+      }
+    }
+  }, [id]);
+
+  // Persistent Chat: Save to localStorage
+  useEffect(() => {
+    if (id && chatMessages.length > 0) {
+      localStorage.setItem(`chat_${id}`, JSON.stringify(chatMessages));
+    }
+  }, [chatMessages, id]);
   const [isExporting, setIsExporting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(null); // 'mindMap', 'quiz', etc.
   const [isDeleting, setIsDeleting] = useState(false);
@@ -218,7 +238,7 @@ const VideoDetail = () => {
   const [pdfInstalled, setPdfInstalled] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
-  const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   const isProcessing = currentVideo?.processingStatus === 'pending' || currentVideo?.processingStatus === 'processing';
 
@@ -232,7 +252,7 @@ const VideoDetail = () => {
   useEffect(() => {
     setSelectedAnswers([]);
     setQuizResult(null);
-    setChatMessages([]);
+    // Removed setChatMessages([]) here to allow for persistence
     fetchVideo(id);
   }, [id]);
 
@@ -251,7 +271,9 @@ const VideoDetail = () => {
   }, [isProcessing, startPolling]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [chatMessages, activeTab]);
 
   const handleAnswerChange = (questionIndex, answerIndex) => {
@@ -1235,21 +1257,25 @@ const VideoDetail = () => {
                 {activeTab === 'chat' && currentVideo.processingStatus === 'completed' && currentVideo.transcript && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }} 
-                    animate={{ opacity: 1, scale: 1, y: [0, -8, 0] }} 
-                    transition={{ opacity: { duration: 0.3 }, y: { repeat: Infinity, duration: 4, ease: "easeInOut" } }} 
+                    animate={{ opacity: 1, scale: 1 }} 
+                    transition={{ duration: 0.3 }} 
                     className="glass-ultra rounded-[2.5rem] border border-white/20 dark:border-white/5 overflow-hidden shadow-[0_25px_60px_-15px_rgba(139,92,246,0.3),inset_0_1px_2px_rgba(255,255,255,0.4)] relative"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-[#8B5CF6]/10 via-transparent to-[#14B8A6]/10 pointer-events-none z-0" />
                     
                     <div className="p-6 border-b border-white/10 dark:border-white/5 bg-white/5 dark:bg-black/20 backdrop-blur-xl relative z-10 flex justify-between items-center shadow-[0_10px_30px_-5px_rgba(0,0,0,0.1)]">
-                      <h2 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-3">
+                      <motion.h2 
+                        animate={{ y: [0, -5, 0] }}
+                        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                        className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-3"
+                      >
                         <span className="w-1.5 h-8 bg-[#8B5CF6] rounded-full inline-block shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
                         <FiMessageCircle className="text-[#8B5CF6] drop-shadow-md" />
-                        Chat with Video
-                      </h2>
+                        {lang === 'ar' ? 'الدردشة مع المحتوى' : 'Chat with Content'}
+                      </motion.h2>
                     </div>
 
-                    <div className="h-[450px] overflow-y-auto p-6 space-y-6 relative z-10 bg-transparent custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-hide bg-[var(--bg-deep)]/30" ref={chatContainerRef}>
                       {chatMessages.length === 0 && (
                         <div className="text-center py-20">
                           <FiMessageCircle className="text-[#8B5CF6]/30 text-6xl mx-auto mb-4 animate-pulse" />
@@ -1263,8 +1289,8 @@ const VideoDetail = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             className={`max-w-[80%] px-5 py-4 rounded-3xl text-base whitespace-pre-line shadow-[0_10px_30px_rgba(0,0,0,0.1)] border ${
                             msg.role === 'user'
-                              ? 'glass bg-[#8B5CF6]/30 backdrop-blur-xl text-white border-white/30 border-t-white/40 dark:border-white/10 rounded-tr-none shadow-[0_8px_20px_rgba(139,92,246,0.3)] font-medium leading-relaxed'
-                              : `bg-white/10 dark:bg-black/30 backdrop-blur-xl text-[var(--text-primary)] border-white/20 dark:border-white/10 border-t-white/30 rounded-tl-none shadow-[0_4px_12px_rgba(20,184,166,0.05)] font-medium leading-relaxed`
+                              ? 'bg-gradient-to-br from-[#8B5CF6] to-[#7C3AED] text-white border-white/20 rounded-tr-none shadow-[0_8px_20px_rgba(139,92,246,0.4)] font-semibold leading-relaxed'
+                              : `bg-white/10 dark:bg-black/30 backdrop-blur-xl text-[var(--text-primary)] border-white/20 dark:border-white/10 border-t-white/30 rounded-tl-none shadow-[0_4px_12px_rgba(20,184,164,0.05)] font-medium leading-relaxed`
                           }`}>
                             {msg.role === 'user' ? msg.content : <AIAudioMessage content={msg.content} />}
                           </motion.div>
@@ -1281,8 +1307,7 @@ const VideoDetail = () => {
                           </motion.div>
                         </div>
                       )}
-                      <div ref={chatEndRef} />
-                    </div>
+                            </div>
 
                     <div className="p-4 md:p-6 border-t border-white/10 dark:border-white/5 flex gap-3 md:gap-4 bg-white/5 dark:bg-black/20 backdrop-blur-2xl relative z-10 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] overflow-hidden">
                       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>

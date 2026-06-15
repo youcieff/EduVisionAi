@@ -242,17 +242,47 @@ export default function SkillTreePage() {
               : 'Earn Skill Points (SP) every time you Level Up. Spend them to unlock passive boosts and aesthetic prestige.'}
           </p>
           
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="inline-flex items-center gap-4 bg-[var(--input-bg)] border border-[var(--glass-border)] px-6 py-3 rounded-2xl shadow-xl"
-          >
-            <div className="w-10 h-10 rounded-full bg-[#14B8A6]/20 text-[#14B8A6] flex items-center justify-center font-black">SP</div>
-            <div className="text-left">
-              <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{lang === 'ar' ? 'النقاط المتاحة' : 'Available Points'}</div>
-              <div className="text-2xl font-black text-[var(--text-primary)] leading-none">{skillPoints}</div>
-            </div>
-          </motion.div>
+          <div className="flex flex-col items-center gap-3">
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="inline-flex items-center gap-4 bg-[var(--input-bg)] border border-[var(--glass-border)] px-6 py-3 rounded-2xl shadow-xl"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#14B8A6]/20 text-[#14B8A6] flex items-center justify-center font-black">SP</div>
+              <div className="text-left">
+                <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{lang === 'ar' ? 'النقاط المتاحة' : 'Available Points'}</div>
+                <div className="text-2xl font-black text-[var(--text-primary)] leading-none">{skillPoints}</div>
+              </div>
+            </motion.div>
+
+            {/* XP Progress to Next Level */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.15 }}
+              className="w-full max-w-xs bg-[var(--input-bg)] border border-[var(--glass-border)] px-5 py-3 rounded-2xl shadow-lg"
+            >
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                  {lang === 'ar' ? `المستوى ${user?.level || 1}` : `Level ${user?.level || 1}`}
+                </span>
+                <span className="text-[10px] font-bold text-[#14B8A6]">
+                  {(user?.xp || 0) % 1000} / 1000 XP
+                </span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-[var(--bg-deep)] overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((user?.xp || 0) % 1000) / 10}%` }}
+                  transition={{ duration: 1, ease: 'easeOut' }}
+                  className="h-full rounded-full bg-gradient-to-r from-[#14B8A6] to-[#00D4FF]"
+                />
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1.5 text-center">
+                {lang === 'ar' ? 'كل Level Up = 1 نقطة مهارة (SP)' : 'Each Level Up = +1 Skill Point (SP)'}
+              </p>
+            </motion.div>
+          </div>
         </div>
 
         {/* Tree Container */}

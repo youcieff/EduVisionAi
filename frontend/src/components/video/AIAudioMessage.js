@@ -20,25 +20,58 @@ const AIAudioMessage = ({ content }) => {
       return;
     }
 
-    try {
+    // Check if server TTS is known to be failing in this session
+    const isServerTtsDown = sessionStorage.getItem('server_tts_down') === 'true';
+
+    if (!isServerTtsDown) {
+      try {
+        setIsLoading(true);
+        const api = (await import('../../api/api')).default;
+        const response = await api.post('/videos/chat/audio', { text: content }, { responseType: 'blob' });
+        const audioUrl = URL.createObjectURL(response.data);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => setIsPlaying(false);
+        audio.onpause = () => setIsPlaying(false);
+        audio.onplay = () => setIsPlaying(true);
+        
+        audioRef.current = audio;
+        audio.play();
+        setIsPlaying(true);
+        return; // Success!
+      } catch (e) {
+        console.warn('Server TTS failed, marking as down and falling back to browser', e);
+        sessionStorage.setItem('server_tts_down', 'true');
+        // Continue to browser fallback below
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // Client-side fallback using Web Speech API (Browser Native)
+    if ('speechSynthesis' in window) {
       setIsLoading(true);
-      const api = (await import('../../api/api')).default;
-      const response = await api.post('/videos/chat/audio', { text: content }, { responseType: 'blob' });
-      const audioUrl = URL.createObjectURL(response.data);
-      const audio = new Audio(audioUrl);
+      const utterance = new SpeechSynthesisUtterance(content);
+      // Try to detect language (Arabic/English)
+      utterance.lang = /[\u0600-\u06FF]/.test(content) ? 'ar-SA' : 'en-US';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
       
-      // Basic animated equalizer simulation when playing
-      audio.onended = () => setIsPlaying(false);
-      audio.onpause = () => setIsPlaying(false);
-      audio.onplay = () => setIsPlaying(true);
+      utterance.onstart = () => {
+        setIsPlaying(true);
+        setIsLoading(false);
+      };
+      utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => {
+        setIsPlaying(false);
+        setIsLoading(false);
+      };
       
-      audioRef.current = audio;
-      audio.play();
-      setIsPlaying(true);
-    } catch (e) {
-      console.error('Failed to play audio', e);
-      alert('⚠️ Failed to generate voice. Please try again.');
-    } finally {
+      window.speechSynthesis.cancel(); // Clear queue
+      window.speechSynthesis.speak(utterance);
+      audioRef.current = { pause: () => window.speechSynthesis.cancel() }; // Simple control mock
+    } else {
+      alert('⚠️ Failed to generate voice. Device does not support speech synthesis.');
       setIsLoading(false);
     }
   };

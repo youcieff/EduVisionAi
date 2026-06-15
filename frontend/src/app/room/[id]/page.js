@@ -7,7 +7,7 @@ import useLanguageStore from '../../../store/languageStore';
 import useThemeStore from '../../../store/themeStore';
 import useAppSound from '../../../hooks/useAppSound';
 import api from '../../../api/api';
-import { FiUsers, FiMessageSquare, FiSend, FiLogOut, FiFileText, FiBookOpen, FiHelpCircle, FiMap } from 'react-icons/fi';
+import { FiUsers, FiMessageSquare, FiSend, FiLogOut, FiFileText, FiBookOpen, FiHelpCircle, FiMap, FiSearch } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import Flashcards from '../../../components/video/Flashcards';
 import MindMap from '../../../components/video/MindMap';
@@ -33,7 +33,8 @@ export default function StudyRoomPage() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   
-  const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const inviteRef = useRef(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -86,9 +87,9 @@ export default function StudyRoomPage() {
         toUserId: targetUser._id,
         roomId: videoId,
         videoTitle: video.title,
-        fromUsername: user.name || 'Student'
+        fromUsername: user.username || 'Student'
       });
-      toast.success(lang === 'ar' ? `تم إرسال الدعوة لـ ${targetUser.name}` : `Invite sent to ${targetUser.name}`);
+      toast.success(lang === 'ar' ? `تم إرسال الدعوة لـ ${targetUser.username || targetUser.name}` : `Invite sent to ${targetUser.username || targetUser.name}`);
       setShowInviteModal(false);
       setSearchQuery('');
     } catch(err) {
@@ -104,12 +105,15 @@ export default function StudyRoomPage() {
     const newSocket = io(API_URL);
     setSocket(newSocket);
 
-    const username = user.name || 'Student';
+    const username = user?.username || user?.name || 'Student';
     newSocket.emit('join-room', { roomId: videoId, username });
 
     // Listeners
     newSocket.on('room-update', (data) => {
-      setUsers(data.users || []);
+      // Handle both formats (array or object with users array)
+      const userList = Array.isArray(data) ? data : (data.users || []);
+      setUsers(userList);
+      
       if (data.videoState && data.videoState.currentTime > 0) {
         // Initial sync on join
         if (playerRef.current && Math.abs(playerRef.current.getCurrentTime() - data.videoState.currentTime) > 2) {
@@ -147,9 +151,23 @@ export default function StudyRoomPage() {
     };
   }, [videoId, user, playSwoosh, playXpPop]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (inviteRef.current && !inviteRef.current.contains(e.target)) {
+        setShowInviteModal(false);
+      }
+    };
+    if (showInviteModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showInviteModal]);
+
   // Scroll chat
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleSendMessage = (e) => {
@@ -158,7 +176,8 @@ export default function StudyRoomPage() {
     
     socket.emit('room-chat', {
       roomId: videoId,
-      username: user?.name,
+      senderId: user?._id || user?.id,
+      username: user?.username || user?.name || 'Student',
       message: chatInput
     });
     setChatInput('');
@@ -277,27 +296,66 @@ export default function StudyRoomPage() {
                 
                 {/* Invite Dropdown */}
                 {showInviteModal && (
-                  <div className="absolute top-full right-0 mt-2 w-72 glass shadow-2xl rounded-2xl border border-[var(--glass-border)] p-4 z-50">
-                    <h4 className="font-bold mb-3">{lang === 'ar' ? 'ابحث عن صديق' : 'Search for friend'}</h4>
-                    <input 
-                      type="text" 
-                      value={searchQuery}
-                      onChange={(e) => handleSearchUsers(e.target.value)}
-                      placeholder={lang === 'ar' ? 'اكتب اسم...' : 'Type name...'}
-                      className="w-full bg-[var(--input-bg)] border border-[var(--glass-border)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[#14B8A6] mb-2"
-                    />
+                  <div 
+                    ref={inviteRef}
+                    style={{ 
+                      backgroundColor: isDark ? '#0a0a1a' : '#ffffff', 
+                      backdropFilter: 'blur(40px)',
+                      color: isDark ? 'white' : '#0f172a'
+                    }}
+                    className={`absolute bottom-full right-0 mb-8 w-[400px] shadow-[0_30px_100px_-15px_rgba(0,0,0,0.4)] rounded-[3rem] border ${isDark ? 'border-white/10' : 'border-gray-200'} p-10 z-[999] animate-in fade-in scale-in slide-in-from-bottom-8 duration-500 ring-1 ${isDark ? 'ring-white/5' : 'ring-black/5'}`}
+                  >
+                    <div className="flex items-center gap-8 mb-10">
+                      <div className="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br from-[#14B8A6] to-[#00D4FF] flex items-center justify-center shadow-[0_0_40px_rgba(20,184,166,0.3)] shrink-0">
+                        <FiUsers className="text-white text-4xl" />
+                      </div>
+                      <div className="flex flex-col">
+                        <h4 className={`font-black text-3xl tracking-tighter leading-none mb-2 ${isDark ? 'text-white' : 'text-[#0f172a]'}`}>{lang === 'ar' ? 'دعوة صديق' : 'Invite Friend'}</h4>
+                        <div className="flex items-center gap-3">
+                          <span className="w-2 h-2 rounded-full bg-[#14B8A6] animate-pulse" />
+                          <p className="text-[11px] text-[#14B8A6] font-black uppercase tracking-[0.25em] opacity-80">Collaborative Mode</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative mb-8">
+                      <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-lg" />
+                      <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => handleSearchUsers(e.target.value)}
+                        placeholder={lang === 'ar' ? 'اكتب اسم صديقك...' : 'Type friend name...'}
+                        className={`w-full bg-[var(--input-bg)] border ${isDark ? 'border-white/10' : 'border-gray-200'} rounded-2xl pl-14 pr-5 py-4 text-sm focus:outline-none focus:border-[#14B8A6] focus:ring-4 focus:ring-[#14B8A6]/20 transition-all placeholder:opacity-50 shadow-inner ${isDark ? 'text-white' : 'text-gray-900'}`}
+                      />
+                    </div>
                     {isSearching ? (
-                      <p className="text-xs text-[var(--text-muted)] text-center py-2">{lang === 'ar' ? 'جاري البحث...' : 'Searching...'}</p>
+                      <div className="flex flex-col items-center py-12 gap-5">
+                        <div className="w-12 h-12 border-4 border-[#14B8A6] border-t-transparent rounded-full animate-spin" />
+                        <p className="text-[12px] uppercase tracking-[0.25em] text-[var(--text-muted)] font-black opacity-50">{lang === 'ar' ? 'جاري البحث' : 'Searching'}</p>
+                      </div>
                     ) : (
-                      <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2">
-                        {searchResults.map(u => (
-                          <div key={u._id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition border border-transparent hover:border-white/10">
-                            <span className="text-sm font-semibold truncate max-w-[120px] text-[var(--text-primary)]">{u.name}</span>
-                            <button onClick={() => sendInvite(u)} className="text-xs bg-[#14B8A6] text-gray-900 px-3 py-1.5 rounded-md font-bold hover:scale-105 active:scale-95 transition-transform">
-                              {lang === 'ar' ? 'إرسال' : 'Send'}
-                            </button>
-                          </div>
-                        ))}
+                      <div className="max-h-72 overflow-y-auto custom-scrollbar flex flex-col gap-3 p-1">
+                        {searchResults.length === 0 && searchQuery.length > 1 ? (
+                           <div className="text-center py-10">
+                             <p className="text-sm text-[var(--text-muted)] font-black opacity-40">{lang === 'ar' ? 'لا يوجد نتائج' : 'No friends found'}</p>
+                           </div>
+                        ) : (
+                          searchResults.map(u => (
+                            <div key={u._id} className="flex items-center justify-between p-4 rounded-[1.5rem] hover:bg-[#14B8A6]/10 transition-all border border-transparent hover:border-[#14B8A6]/20 group">
+                              <div className="flex items-center gap-4 min-w-0">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#14B8A6] to-[#0D9488] flex items-center justify-center text-white text-sm font-black uppercase shadow-xl shadow-[#14B8A6]/20 group-hover:rotate-[360deg] transition-all duration-700">
+                                  {u.username?.charAt(0) || u.name?.charAt(0)}
+                                </div>
+                                <span className="text-[15px] font-bold text-[var(--text-primary)] group-hover:text-[#14B8A6] transition-colors truncate">{u.username || u.name}</span>
+                              </div>
+                              <button 
+                                onClick={() => sendInvite(u)} 
+                                className="ml-4 text-[10px] uppercase tracking-[0.2em] bg-[#14B8A6] text-gray-900 px-5 py-2.5 rounded-xl font-black hover:scale-110 active:scale-95 transition-all shadow-2xl shadow-[#14B8A6]/30 shrink-0"
+                              >
+                                {lang === 'ar' ? 'إرسال' : 'Invite'}
+                              </button>
+                            </div>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
@@ -317,19 +375,26 @@ export default function StudyRoomPage() {
         <div className="w-full lg:w-96 flex flex-col gap-4 h-[600px] lg:h-[calc(100vh-120px)] lg:max-h-[800px] sticky top-20">
           
           {/* Active Users */}
-          <div className="glass p-4 rounded-2xl border border-[var(--glass-border)]">
-            <h3 className="font-bold flex items-center gap-2 mb-3">
-              <FiUsers className="text-[#14B8A6]" /> {lang === 'ar' ? 'الطلاب المتصلين' : 'Active Students'} ({(users || []).length})
+          <div className={`glass p-6 rounded-2xl border border-[var(--glass-border)] ${isDark ? 'bg-[#0a0a1a]/40' : 'bg-white/40'}`}>
+            <h3 className="font-black text-[var(--text-primary)] text-sm mb-4 tracking-tighter uppercase opacity-50 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#14B8A6] animate-pulse" />
+              {lang === 'ar' ? `الطلاب المتصلين حالياً (${(users || []).filter(u => u !== (user?.username || user?.name || 'Student')).length})` : `Other Students Online (${(users || []).filter(u => u !== (user?.username || user?.name || 'Student')).length})`}
             </h3>
-            <div className="flex flex-wrap gap-2">
-              {(users || []).map((u, i) => (
-                <div key={i} className="px-3 py-1.5 rounded-full bg-[var(--input-bg)] border border-[var(--glass-border)] text-xs font-semibold flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-[#14B8A6] to-[#00D4FF] flex items-center justify-center text-white">
-                    {u?.username?.charAt(0).toUpperCase() || '?'}
+            <div className="flex flex-wrap gap-2.5">
+              {(users || []).filter(u => u !== (user?.username || user?.name || 'Student')).length === 0 ? (
+                <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest opacity-40 italic">
+                  {lang === 'ar' ? 'أنت الوحيد هنا حالياً' : 'Studying solo at the moment'}
+                </p>
+              ) : (
+                (users || []).filter(u => u !== (user?.username || user?.name || 'Student')).map((u, i) => (
+                  <div key={i} className={`pl-1 pr-4 py-1.5 rounded-[2rem] border border-[#14B8A6]/20 text-xs font-bold transition-all hover:scale-105 flex items-center gap-3 ${isDark ? 'bg-[#14B8A6]/10 text-white' : 'bg-white text-[#0f172a] shadow-sm'}`}>
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#14B8A6] to-[#00D4FF] flex items-center justify-center text-white text-[10px] font-black uppercase shadow-lg shadow-[#14B8A6]/20">
+                      {(u || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <span className="tracking-tight">{u}</span>
                   </div>
-                  {u?.username || 'Unknown'}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -341,26 +406,42 @@ export default function StudyRoomPage() {
               </h3>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-hide bg-[var(--bg-deep)]/30" ref={chatContainerRef}>
               {messages.length === 0 ? (
-                <div className="text-center text-[var(--text-muted)] text-sm pt-10">
-                  {lang === 'ar' ? 'لا توجد رسائل بعد' : 'No messages yet'}
+                <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] opacity-40 py-10 scale-90">
+                  <FiMessageSquare size={40} className="mb-3" />
+                  <p className="font-bold tracking-widest uppercase text-[10px]">{lang === 'ar' ? 'لا توجد رسائل بعد' : 'Waiting for messages'}</p>
                 </div>
               ) : (
-                messages.map((msg, idx) => (
-                  <div key={idx} className={`flex flex-col ${msg.username === user?.name ? 'items-end' : 'items-start'}`}>
-                    <span className="text-[10px] text-[var(--text-muted)] mb-1">{msg.username}</span>
-                    <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${
-                      msg.username === user?.name 
-                        ? 'bg-gradient-to-r from-[#14B8A6] to-[#0D9488] text-white rounded-br-none' 
-                        : 'bg-[var(--input-bg)] text-[var(--text-primary)] rounded-bl-none'
-                    }`}>
-                      {msg.message}
+                messages.map((msg, idx) => {
+                  const isMine = msg.senderId === (user?._id || user?.id);
+                  return (
+                    <div key={idx} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                      {!isMine && (
+                        <div className="flex items-center gap-2 mb-1.5 ml-1">
+                          <div className="w-4 h-4 rounded-full bg-[#14B8A6] flex items-center justify-center text-[8px] text-white font-black uppercase">
+                            {msg.username?.charAt(0)}
+                          </div>
+                          <span className="text-[10px] font-black text-[#14B8A6] uppercase tracking-widest">
+                            {msg.username}
+                          </span>
+                        </div>
+                      )}
+                      <div className={`relative px-4 py-3 rounded-2xl max-w-[85%] text-[13.5px] shadow-sm leading-relaxed ${
+                        isMine 
+                          ? 'bg-gradient-to-br from-[#14B8A6] to-[#0D9488] text-white rounded-tr-none shadow-[#14B8A6]/10 font-medium' 
+                          : 'bg-[var(--bg-card)] text-[var(--text-primary)] rounded-tl-none border border-[var(--glass-border)]'
+                      }`}>
+                        {msg.message}
+                        <div className={`text-[8px] mt-1.5 flex justify-end opacity-60 font-medium ${isMine ? 'text-white/80' : 'text-[var(--text-muted)]'}`}>
+                          {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
-              <div ref={chatEndRef} />
+
             </div>
 
             <form onSubmit={handleSendMessage} className="p-3 bg-[var(--input-bg)]/50 border-t border-[var(--glass-border)] flex items-center gap-2">

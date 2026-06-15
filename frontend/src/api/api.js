@@ -88,6 +88,9 @@ export const videoAPI = {
   getAchievements: () => api.get('/videos/achievements'),
   getDueFlashcards: () => api.get('/videos/flashcards/due'),
   reviewFlashcard: (data) => api.post('/videos/flashcards/review', data),
+  chatWithVideo: (id, message) => api.post(`/videos/${id}/chat`, { message }),
+  regenerateComponent: (id, data) => api.post(`/videos/${id}/regenerate-component`, data),
+  generateChatAudio: (data) => api.post('/videos/chat/audio', data, { responseType: 'arraybuffer' }),
 };
 
 export const adminAPI = {

@@ -18,6 +18,21 @@ const PersonalNotes = ({ videoId }) => {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // Persistence for AI Analysis
+  useEffect(() => {
+    if (!videoId) return;
+    const savedAnalysis = localStorage.getItem(`ai_analysis_${videoId}`);
+    if (savedAnalysis) {
+      setAiAnalysis(savedAnalysis);
+    }
+  }, [videoId]);
+
+  useEffect(() => {
+    if (videoId && aiAnalysis) {
+      localStorage.setItem(`ai_analysis_${videoId}`, aiAnalysis);
+    }
+  }, [aiAnalysis, videoId]);
+
   useEffect(() => {
     const fetchNotes = async () => {
       try {

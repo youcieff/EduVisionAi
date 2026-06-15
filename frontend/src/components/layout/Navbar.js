@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMenu, FiX, FiHome, FiUpload, FiGrid, FiLogOut, FiUser, FiInfo, FiAward, FiBell, FiChevronDown, FiZap, FiShield, FiRefreshCw } from 'react-icons/fi';
+import { FiMenu, FiX, FiHome, FiUpload, FiGrid, FiLogOut, FiUser, FiInfo, FiAward, FiBell, FiChevronDown, FiZap, FiShield, FiRefreshCw, FiArrowLeft } from 'react-icons/fi';
 import EduVisionLogo from '../common/EduVisionLogo';
 import { BsSunFill, BsMoonStarsFill } from 'react-icons/bs';
 import useAuthStore from '../../store/authStore';
@@ -18,7 +18,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { isAuthenticated, user, logout } = useAuthStore();
-  const { t, lang, toggleLang } = useLanguageStore();
+  const { t, lang, toggleLang, isRTL } = useLanguageStore();
   const { isDark, toggleTheme } = useThemeStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -51,6 +51,10 @@ const Navbar = () => {
         } catch (e) { }
       };
       fetchNotifs();
+
+      // Real-time update listener for socket-driven notifications
+      window.addEventListener('new-notification', fetchNotifs);
+      return () => window.removeEventListener('new-notification', fetchNotifs);
     }
   }, [isAuthenticated, pathname]);
 
@@ -85,7 +89,10 @@ const Navbar = () => {
   // Desktop nav items config
   const isAdmin = mounted && user?.role === 'admin';
   const getNavItems = () => {
-    const items = [{ to: '/', icon: <FiHome size={15} />, label: t('nav.home') }];
+    const items = [
+      { to: '/', icon: <FiHome size={15} />, label: mounted ? t('nav.home') : 'Home' }
+    ];
+
     if (mounted && isAuthenticated) {
       if (isAdmin) {
         items.push(
@@ -95,7 +102,7 @@ const Navbar = () => {
         items.push(
           { to: '/leaderboard', icon: <FiAward size={15} />, label: lang === 'ar' ? 'المتصدرين' : 'Leaderboard' },
           { to: '/review', icon: <FiRefreshCw size={15} />, label: lang === 'ar' ? 'المراجعة' : 'Review' },
-          { to: '/dashboard', icon: <FiGrid size={15} />, label: t('nav.dashboard') },
+          { to: '/dashboard', icon: <FiGrid size={15} />, label: mounted ? t('nav.dashboard') : 'Dashboard' },
         );
       }
     } else if (mounted) {
@@ -124,25 +131,39 @@ const Navbar = () => {
       >
         <div className="flex items-center justify-between h-14 px-4 md:px-5">
           
-          {/* ═══ Logo ═══ */}
-          <Link href="/" className="flex items-center gap-2.5 group relative">
-            <motion.div
-              whileHover={{ scale: 1.08, rotate: 5 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative"
-            >
-              <div className="nav-logo-glow" />
-              <div className="rounded-xl relative z-10 shadow-lg shadow-[#14B8A6]/20 overflow-hidden">
-                <EduVisionLogo size={36} />
+          {/* ═══ Logo & Back button ═══ */}
+          <div className="flex items-center gap-4">
+            {mounted && pathname !== '/' && pathname !== '/ar' && (
+              <motion.button
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => router.back()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--text-primary)]/5 hover:bg-[var(--text-primary)]/10 text-[var(--text-secondary)] transition-all group"
+              >
+                <FiArrowLeft className={`${isRTL ? 'rotate-180' : ''} transition-transform group-hover:-translate-x-1`} />
+                <span className="text-xs font-bold hidden sm:block">{isRTL ? 'رجوع' : 'Back'}</span>
+              </motion.button>
+            )}
+
+            <Link href="/" className="flex items-center gap-2.5 group relative">
+              <motion.div
+                whileHover={{ scale: 1.08, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative"
+              >
+                <div className="nav-logo-glow" />
+                <div className="rounded-xl relative z-10 shadow-lg shadow-[#14B8A6]/20 overflow-hidden">
+                  <EduVisionLogo size={36} />
+                </div>
+              </motion.div>
+              <div className="hidden sm:block">
+                <span className="text-[var(--text-primary)] text-[17px] font-extrabold tracking-tight">
+                  Edu<span className="bg-gradient-to-r from-[#14B8A6] to-[#00D4FF] bg-clip-text text-transparent">Vision</span>
+                </span>
+                <span className="text-[10px] font-black tracking-wider bg-gradient-to-r from-[#14B8A6] to-[#00D4FF] bg-clip-text text-transparent ml-0.5 align-super">AI</span>
               </div>
-            </motion.div>
-            <div className="hidden sm:block">
-              <span className="text-[var(--text-primary)] text-[17px] font-extrabold tracking-tight">
-                Edu<span className="bg-gradient-to-r from-[#14B8A6] to-[#00D4FF] bg-clip-text text-transparent">Vision</span>
-              </span>
-              <span className="text-[10px] font-black tracking-wider bg-gradient-to-r from-[#14B8A6] to-[#00D4FF] bg-clip-text text-transparent ml-0.5 align-super">AI</span>
-            </div>
-          </Link>
+            </Link>
+          </div>
 
           {/* ═══ Desktop Center Nav ═══ */}
           <div className="hidden md:flex items-center">
@@ -250,7 +271,16 @@ const Navbar = () => {
                             </div>
                           ) : (
                             notifications.map(n => (
-                              <div key={n._id} className={`px-4 py-3 border-b border-[var(--border-color)]/50 transition-colors cursor-pointer hover-glow ${!n.isRead ? 'bg-[#00D4FF]/5' : ''}`}>
+                              <div 
+                                key={n._id} 
+                                onClick={() => {
+                                  if (n.link) {
+                                    router.push(n.link);
+                                    setShowNotifications(false);
+                                  }
+                                }}
+                                className={`px-4 py-3 border-b border-[var(--border-color)]/50 transition-colors cursor-pointer hover-glow ${!n.isRead ? 'bg-[#00D4FF]/5' : ''}`}
+                              >
                                 <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-0.5">{n.title}</h4>
                                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">{n.message}</p>
                                 <span className="text-[10px] text-[var(--text-muted)]/50 mt-1 block">
@@ -431,7 +461,7 @@ const Navbar = () => {
             >
               <div className="px-3 py-3 space-y-1 border-t border-[var(--border-color)]/30">
                 {[
-                  { to: '/', icon: <FiHome size={17} />, label: t('nav.home') },
+                  { to: '/', icon: <FiHome size={17} />, label: mounted ? t('nav.home') : 'Home' },
                   ...(mounted && isAuthenticated
                     ? [
                         { to: '/leaderboard', icon: <FiAward size={17} />, label: lang === 'ar' ? 'المتصدرين' : 'Leaderboard' },

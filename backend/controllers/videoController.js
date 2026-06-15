@@ -562,42 +562,37 @@ async function processYoutubeVideoAsync(videoId, youtubeUrl, io = null) {
     
     if (io) io.emit(`processing:${videoId}`, { status: 'processing', progress: 80, message: 'Generating AI content...' });
     
+    // Process AI content SEQUENTIALLY to avoid hitting rate limits on Groq free tier
+    // Each request now has a 3-second buffer and uses proactive load-balancing in openaiService
     let description = '', summary = '', keyPoints = [], questions = [], flashcards = [];
     
-    // BATCH 1: Description + Summary run in parallel (independent tasks)
-    const [descResult, summResult] = await Promise.allSettled([
-      openaiService.generateDetailedDescription(transcript, userPrompt, title, preferredLang)
-        .catch(e => { console.error('❌ Description failed:', e.message); return 'حدث خطأ أثناء إنشاء الشرح المفصل.'; }),
-      openaiService.generateSummary(transcript, userPrompt, title, preferredLang)
-        .catch(e => { 
-          console.error('❌ Summary failed:', e.message); 
-          return e.message.includes('429') ? 'عذراً، لقد استنفدت باقة الذكاء الاصطناعي اليومية (Rate Limit). يرجى الانتظار والمحاولة لاحقاً.' : 'حدث خطأ أثناء إنشاء الملخص.'; 
-        }),
-    ]);
-    description = descResult.status === 'fulfilled' ? descResult.value : 'حدث خطأ أثناء إنشاء الشرح المفصل.';
-    summary = summResult.status === 'fulfilled' ? summResult.value : 'حدث خطأ أثناء إنشاء الملخص.';
-    
-    await delay(2000); // Rate limit protection between batches
-    
-    // BATCH 2: Key Points + Flashcards (parallel — independent of each other)
-    const [kpResult, fcResult] = await Promise.allSettled([
-      openaiService.extractKeyPoints(transcript, userPrompt, title, preferredLang)
-        .catch(e => { console.error('❌ Key points failed:', e.message); return [e.message.includes('429') ? 'عذراً، لقد استنفدت باقة الذكاء الاصطناعي اليومية (Rate Limit).' : 'حدث خطأ أثناء استخراج النقاط الرئيسية']; }),
-      openaiService.generateFlashcards(transcript, userPrompt, title, preferredLang)
-        .catch(e => { console.error('❌ Flashcards failed:', e.message); return openaiService.generateDefaultFlashcards(); }),
-    ]);
-    keyPoints = kpResult.status === 'fulfilled' ? kpResult.value : ['حدث خطأ أثناء استخراج النقاط الرئيسية'];
-    flashcards = fcResult.status === 'fulfilled' ? fcResult.value : openaiService.generateDefaultFlashcards();
-    
-    await delay(2000);
-    
-    // BATCH 3: Questions (heaviest call — needs its own slot)
     try {
-      console.log('❓ Generating questions...');
+      console.log('📄 Step 1: Generating detailed description...');
+      description = await openaiService.generateDetailedDescription(transcript, userPrompt, title, preferredLang);
+      await delay(3000);
+
+      console.log('📝 Step 2: Generating summary...');
+      summary = await openaiService.generateSummary(transcript, userPrompt, title, preferredLang);
+      await delay(3000);
+
+      console.log('🔑 Step 3: Extracting key points...');
+      keyPoints = await openaiService.extractKeyPoints(transcript, userPrompt, title, preferredLang);
+      await delay(3000);
+
+      console.log('🃏 Step 4: Generating flashcards...');
+      flashcards = await openaiService.generateFlashcards(transcript, userPrompt, title, preferredLang);
+      await delay(3000);
+
+      console.log('❓ Step 5: Generating quiz questions...');
       questions = await openaiService.generateQuestions(transcript, userPrompt, title, preferredLang);
-    } catch (e) { 
-      console.error('❌ Questions failed:', e.message); 
-      questions = openaiService.generateDefaultQuestions(); 
+    } catch (err) {
+      console.error('❌ Sequental AI processing error:', err.message);
+      // Ensure defaults are set if sequence broke
+      description = description || 'حدث خطأ أثناء إنشاء الشرح المفصل.';
+      summary = summary || 'حدث خطأ أثناء إنشاء الملخص.';
+      keyPoints = keyPoints.length > 0 ? keyPoints : ['حدث خطأ أثناء استخراج النقاط الرئيسية'];
+      flashcards = flashcards.length > 0 ? flashcards : openaiService.generateDefaultFlashcards();
+      questions = questions.length > 0 ? questions : openaiService.generateDefaultQuestions();
     }
     
     // Update video with results
@@ -980,7 +975,7 @@ exports.submitQuiz = async (req, res) => {
       const prevScore = user.quizResults[existingResultIndex].score;
       if (score > prevScore) {
         pointsGained = (score - prevScore) * 100;
-        xpGained = Math.round((score - prevScore) * 50 * xpMultiplier);
+        xpGained = pointsGained; // Ensure XP matches Points (100 per correct answer)
         user.quizResults[existingResultIndex].score = score;
       }
       user.quizResults[existingResultIndex].dateTaken = Date.now();
@@ -988,7 +983,7 @@ exports.submitQuiz = async (req, res) => {
     } else {
       // First attempt
       pointsGained = score * 100;
-      xpGained = Math.round(score * 50 * xpMultiplier);
+      xpGained = pointsGained; // Ensure XP matches Points (100 per correct answer)
       user.quizResults.push({
         video: videoId,
         score,
@@ -1893,17 +1888,19 @@ exports.reviewFlashcard = async (req, res) => {
 
     await progress.save();
 
-    // Award XP for reviewing
+    // Award XP and Points for reviewing
     const user = await User.findById(req.user.id);
     
     // --- RPG SKILLS MEMORY BONUS ---
     let memXp = 10;
     if (user.unlockedSkills && user.unlockedSkills.includes('memory_1')) {
-      memXp = 30; // Triples flashcard XP
+      memXp = 30; // Triples flashcard XP/Points
     }
     
+    // Keep Points and XP synced 1:1
     const prevLevel = Math.floor((user.xp || 0) / 1000) + 1;
     user.xp = (user.xp || 0) + memXp;
+    user.points = (user.points || 0) + memXp; // Add points too for coordination
     const newLevel = Math.floor(user.xp / 1000) + 1;
     user.level = newLevel;
     

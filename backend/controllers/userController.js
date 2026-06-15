@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Video = require('../models/Video');
 const Notification = require('../models/Notification');
+const FlashcardProgress = require('../models/FlashcardProgress');
 
 // @desc    Get user dashboard stats
 // @route   GET /api/users/dashboard
@@ -34,15 +35,52 @@ exports.getDashboardStats = async (req, res) => {
       : 0;
 
     const totalVideosUploaded = user.uploadedVideos.length;
+
+    // Calculate flashcard statistics (10 points per review session repetition)
+    const flashcardProgress = await FlashcardProgress.find({ user: user._id });
+    const totalFlashcardReviews = flashcardProgress.reduce((sum, fp) => sum + (fp.repetitions || 0), 0);
+    const pointsFromFlashcards = totalFlashcardReviews * 10;
     
-    // Gamification: 100 pts per correct answer, 50 pts per uploaded video
+    // Gamification Unified System:
+    // 100 pts per correct answer
+    // 50 pts per uploaded video
+    // 10 pts per flashcard review repetition
     const pointsFromQuizzes = totalScore * 100;
     const pointsFromVideos = totalVideosUploaded * 50;
-    const totalPoints = pointsFromQuizzes + pointsFromVideos;
+    const totalPoints = pointsFromQuizzes + pointsFromVideos + pointsFromFlashcards;
 
     // Lazy migration: sync the dynamic totalPoints to the database points field
+    let needsSave = false;
     if (user.points !== totalPoints) {
       user.points = totalPoints;
+      needsSave = true;
+    }
+
+    // Lazy sync: XP = Points so numbers are always consistent
+    // Points → XP → Level → Skill Points
+    if (totalPoints > (user.xp || 0)) {
+      const prevLevel = user.level || 1;
+      user.xp = totalPoints;
+      const newLevel = Math.floor(user.xp / 1000) + 1;
+      user.level = newLevel;
+
+      const levelsGained = newLevel - prevLevel;
+      if (levelsGained > 0) {
+        user.skillPoints = (user.skillPoints || 0) + levelsGained;
+      }
+      needsSave = true;
+    }
+
+    // Ensure core_student is always unlocked (root of the tree)
+    if (!user.unlockedSkills || !user.unlockedSkills.includes('core_student')) {
+      if (!user.unlockedSkills) user.unlockedSkills = [];
+      if (!user.unlockedSkills.includes('core_student')) {
+        user.unlockedSkills.push('core_student');
+      }
+      needsSave = true;
+    }
+
+    if (needsSave) {
       await user.save();
     }
 

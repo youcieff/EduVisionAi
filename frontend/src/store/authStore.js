@@ -33,8 +33,18 @@ const useAuthStore = create((set) => ({
     } catch (error) {
       set({ loading: false });
       const message = error.response?.data?.message || 'Registration failed';
-      toast.error(message);
-      return { success: false, error: message };
+      const data = error.response?.data?.data || {};
+      if (data.needsVerification) {
+        toast('Your account is pending verification. Redirecting to OTP page...', { icon: '📧' });
+      } else {
+        toast.error(message);
+      }
+      return { 
+        success: false, 
+        error: message,
+        needsVerification: data.needsVerification || false,
+        email: data.email,
+      };
     }
   },
 
@@ -90,10 +100,13 @@ const useAuthStore = create((set) => ({
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);
       
+      const data = error.response?.data?.data || {};
       return { 
         success: false, 
         error: message,
-        ...(error.response?.data?.data || {})
+        needsVerification: data.needsVerification || false,
+        email: data.email || credentials.email,
+        ...data,
       };
     }
   },

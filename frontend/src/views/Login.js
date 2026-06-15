@@ -25,9 +25,6 @@ const Login = () => {
       } else {
         router.push('/dashboard');
       }
-    } else if (result.requireVerification) {
-      // If login is blocked because of email not verified
-      router.push(`/verify-otp?email=${encodeURIComponent(result.email)}`);
     }
   };
 

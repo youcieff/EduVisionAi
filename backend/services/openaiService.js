@@ -24,71 +24,110 @@ function initGroqClients() {
 function getGroq() {
   initGroqClients();
   if (groqClients.length === 0) return null;
-  return groqClients[currentClientIndex];
+  
+  // Proactive Load Balancing: Rotate key on every single request
+  // This spreads concurrent calls across all available keys (e.g. 7 keys)
+  const client = groqClients[currentClientIndex];
+  if (groqClients.length > 1) {
+    currentClientIndex = (currentClientIndex + 1) % groqClients.length;
+    console.log(`⚖️ Load Balanced: Using Groq Key ${currentClientIndex + 1}/${groqClients.length}`);
+  }
+  return client;
 }
 
 function rotateGroqKey() {
   if (groqClients.length <= 1) return false;
+  // Index already rotated by getGroq(), but we can do it again on failure just in case
   currentClientIndex = (currentClientIndex + 1) % groqClients.length;
-  console.log(`🔄 Rotated Groq API Key to index ${currentClientIndex + 1}/${groqClients.length}`);
+  console.log(`♻️ Force Rotated Groq API Key to index ${currentClientIndex + 1}/${groqClients.length} after error`);
   return true;
 }
 
 // Legacy alias — all existing code uses `groq.xxx`, so we proxy it to the currently active client
 const groq = new Proxy({}, { 
   get: (_, prop) => {
+    if (prop === 'chat') {
+      return {
+        completions: {
+          create: async (opts) => {
+            // Intelligent interception: If falling back to LITE_MODEL, use OpenAI to bypass Groq IP/Key rate limits completely
+            if (opts.model === 'gpt-4o-mini' && process.env.OPENAI_API_KEY) {
+              const OpenAI = require('openai');
+              const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+              return oai.chat.completions.create(opts);
+            }
+            const client = getGroq();
+            if (!client) throw new Error("No Groq client available");
+            return client.chat.completions.create(opts);
+          }
+        }
+      };
+    }
     const client = getGroq();
     return client ? client[prop] : undefined;
   }
 });
 
 // ═══════════════════════════════════════════════════════════════
-// MODEL ROUTING — Smart selection per task type (Groq Free Tier)
+// MODEL ROUTING — Smart selection per task type
 // ═══════════════════════════════════════════════════════════════
 // PRIMARY: Llama 3.3 70B Versatile — top-tier reasoning, generation, and JSON output
 const REASONING_MODEL = 'llama-3.3-70b-versatile';
 // GENERAL: Same model — unified for consistency and simplicity
 const GENERAL_MODEL = 'llama-3.3-70b-versatile';
-// LITE: Llama 3.1 8B Instant — lightning fast fallback when rate limits are hit
-const LITE_MODEL = 'llama-3.1-8b-instant';
+// SECONDARY FALLBACK (Groq 8B): Extremely high rate limits, good enough if 70B is busy
+const FALLBACK_MODEL = 'llama-3.1-8b-instant';
+// TERTIARY FALLBACK (Groq Mixtral): Another robust model with high limits
+const TERTIARY_MODEL = 'mixtral-8x7b-32768';
+// LITE: Switch to OpenAI for true redundancy when Groq Rate limits are hit
+const LITE_MODEL = 'gpt-4o-mini';
 // VISION: Llama 3.2 11B Vision — native multimodal vision support
 const VISION_MODEL = 'llama-3.2-11b-vision-preview';
-// Legacy alias
-const MODEL = GENERAL_MODEL;
 
-// Retry helper for AI API calls (handles Groq rate limits and timeouts)
-async function retryAsync(fn, retries = 4, delay = 3000, fallbackFn = null) {
+
+// Retry helper for AI API calls (handles rate limits and timeouts)
+async function retryAsync(fn, retries = 2, delay = 2000, fallbackFn = null, secondaryFallbackFn = null, tertiaryFallbackFn = null) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       if (attempt === retries) {
+        // Step 1: Try High-Limit fallback (Groq 8B)
+        if (secondaryFallbackFn) {
+          console.log('🔄 70B Rate limit! Trying high-limit 8B model...');
+          return await secondaryFallbackFn();
+        }
+        // Step 2: Try Tertiary fallback (Groq Mixtral)
+        if (tertiaryFallbackFn) {
+          console.log('🔄 8B also limited! Trying Mixtral...');
+          return await tertiaryFallbackFn();
+        }
+        // Step 3: Try Last-resort Fallback (OpenAI)
         if (fallbackFn) {
-          console.log('🔄 Attempting last-resort fallback with lighter model...');
+          console.log('🔄 Groq exhausted! Attempting last-resort fallback with OpenAI...');
           return await fallbackFn();
         }
         throw error;
       }
       
-      let waitTime = delay * Math.pow(2, attempt); // 3s, 6s, 12s
+      let waitTime = delay * Math.pow(2, attempt); // 2s, 4s, 8s
       const errorStr = (error.message || '').toLowerCase();
       
       if (errorStr.includes('429') || errorStr.includes('rate_limit') || errorStr.includes('too many requests')) {
-        // If it's a TPD (Tokens Per Day) error, switch to fallback immediately if available
-        if (errorStr.includes('tpd') || errorStr.includes('tokens per day')) {
-          console.log('⚠️ Tokens Per Day (TPD) Limit Hit!');
-          if (fallbackFn) return await fallbackFn();
-        }
         
         // Load Balancer: Attempt Key Rotation first!
         if (rotateGroqKey()) {
           console.log('♻️ Successfully rotated API key. Retrying immediately...');
-          continue; // Instantly go to next loop iteration without waiting
+          continue; 
         }
 
-        // TPM (Tokens Per Minute) cooldown: 15s -> 60s -> 100s
-        waitTime = attempt === 0 ? 15000 : (attempt === 1 ? 60000 : 100000);
-        console.log(`⏳ Groq Rate Limit Hit! Waiting ${Math.round(waitTime/1000)}s before retry ${attempt + 1}/${retries}...`);
+        // IMMEDIATELY FALLBACK IF WE CAN'T ROTATE! 
+        console.log('⚠️ Groq 70B Rate Limit Hit! Switching to fallbacks...');
+        if (secondaryFallbackFn) return await secondaryFallbackFn();
+        if (tertiaryFallbackFn) return await tertiaryFallbackFn();
+        if (fallbackFn) return await fallbackFn();
+        
+        waitTime = 5000;
       } else {
         console.log(`⏳ Retry ${attempt + 1}/${retries} after ${waitTime}ms...`);
       }
@@ -105,9 +144,10 @@ function detectLanguage(text, title = '', preferredLang = '', userPrompt = '') {
   const combined = (title + ' ' + (text || '')).toLowerCase();
   const promptLower = (userPrompt || '').toLowerCase();
 
-  // 1. ABSOLUTE TOP PRIORITY: Explicit User Instructions (AI Instructions box)
-  if (promptLower.includes('english') || promptLower.includes('إنجليزي') || promptLower.includes('انكليزي') || promptLower.includes('انجليزي')) return 'en';
-  if (promptLower.includes('arabic') || promptLower.includes('عربي')) return 'ar';
+  // 1. ABSOLUTE TOP PRIORITY: Explicit User Instructions
+  // We check for many variations of "english" or "arabic" in the prompt
+  if (promptLower.includes('english') || promptLower.includes('إنجليزي') || promptLower.includes('انكليزي') || promptLower.includes('انجليزي') || promptLower.match(/\ben\b/)) return 'en';
+  if (promptLower.includes('arabic') || promptLower.includes('عربي') || promptLower.match(/\bar\b/)) return 'ar';
 
   // 2. METADATA SIGNAL - If the title explicitly says "Arabic" or "بالعربي"
   if (combined.includes('arabic') || combined.includes('بالعربي') || combined.includes('عربي')) {
@@ -335,38 +375,43 @@ function safeParseJSON(raw) {
   // 2. Try direct parse first
   try { return JSON.parse(text); } catch (e) { /* fall through */ }
   
-  // 3. Try to extract balanced array [ ... ] or object { ... }
-  // We use greedy match to get the outermost brackets
-  const arrMatch = text.match(/\[[\s\S]*\]/);
-  if (arrMatch) {
+  // 3. Robust extraction for balanced objects/arrays
+  const findBalanced = (str, openChar, closeChar) => {
+    let start = str.indexOf(openChar);
+    if (start === -1) return null;
+    let count = 0;
+    for (let i = start; i < str.length; i++) {
+      if (str[i] === openChar) count++;
+      if (str[i] === closeChar) count--;
+      if (count === 0) return str.substring(start, i + 1);
+    }
+    // If not balanced (truncated), try to find the last valid comma and close it
+    if (count > 0) {
+      let fragment = str.substring(start);
+      // Attempt to close a truncated array/object manually (desperate fallback)
+      for (let i = 0; i < count; i++) fragment += closeChar;
+      try { return fragment; } catch (e) { return null; }
+    }
+    return null;
+  };
+
+  const obj = findBalanced(text, '{', '}');
+  if (obj) {
     try {
-      const fragment = arrMatch[0].replace(/,\s*([\]}])/g, '$1'); // Fix common trailing commas
-      return JSON.parse(fragment);
-    } catch (e) { /* fall through */ }
-  }
-  
-  const objMatch = text.match(/\{[\s\S]*\}/);
-  if (objMatch) {
-    try {
-      const fragment = objMatch[0].replace(/,\s*([\]}])/g, '$1');
-      return JSON.parse(fragment);
+      const fixed = obj.replace(/,\s*([\]}])/g, '$1'); // Fix common trailing commas
+      return JSON.parse(fixed);
     } catch (e) { /* fall through */ }
   }
 
-  // 4. Ultimate fallback for "broken" JSON from weaker models (like 8B)
-  // Sometimes they repeat the prompt or add chatter BEFORE the JSON
-  if (text.includes('[') && text.includes(']')) {
+  const arr = findBalanced(text, '[', ']');
+  if (arr) {
     try {
-      const start = text.lastIndexOf('[');
-      const end = text.lastIndexOf(']') + 1;
-      if (start !== -1 && end > start) {
-        const lastPossibleArray = text.substring(start, end).replace(/,\s*([\]}])/g, '$1');
-        return JSON.parse(lastPossibleArray);
-      }
+      const fixed = arr.replace(/,\s*([\]}])/g, '$1');
+      return JSON.parse(fixed);
     } catch (e) { /* fall through */ }
   }
   
-  console.warn('⚠️ safeParseJSON failed to find valid JSON in:', text.substring(0, 100) + '...');
+  console.warn('⚠️ safeParseJSON failed. Raw length:', text.length, 'Sample:', text.substring(0, 100));
   return null;
 }
 
@@ -568,7 +613,9 @@ Format: Rich, cohesive plain text paragraphs. No markdown.`, userPrompt);
         () => callGroq(GENERAL_MODEL), 
         4, 
         3000, 
-        () => callGroq(LITE_MODEL)
+        () => callGroq(LITE_MODEL),
+        () => callGroq(FALLBACK_MODEL),
+        () => callGroq(TERTIARY_MODEL)
       );
 
       let summary = response.choices[0].message.content.trim();
@@ -648,7 +695,9 @@ Strict Constraints:
         () => callGroq(GENERAL_MODEL), 
         4, 
         3000, 
-        () => callGroq(LITE_MODEL)
+        () => callGroq(LITE_MODEL),
+        () => callGroq(FALLBACK_MODEL),
+        () => callGroq(TERTIARY_MODEL)
       );
 
       let description = response.choices[0].message.content.trim();
@@ -733,7 +782,9 @@ Return up to 25 points to ensure exhaustive coverage. Return ONLY a valid JSON o
         () => callGroq(REASONING_MODEL), 
         3, 
         3000, 
-        () => callGroq(LITE_MODEL)
+        () => callGroq(LITE_MODEL),
+        () => callGroq(FALLBACK_MODEL),
+        () => callGroq(TERTIARY_MODEL)
       );
 
       const rawContent = (response.choices[0].message.content || '').trim();
@@ -811,7 +862,7 @@ Return up to 25 points to ensure exhaustive coverage. Return ONLY a valid JSON o
 {"questions": [{"question": "نص السؤال", "options": ["خيار 1", "خيار 2", "خيار 3", "خيار 4"], "correctAnswer": 0, "explanation": "شرح تفصيلي خطوة بخطوة مبني ببراعة على النص"}]}`
         : `You are a world-class Professor designing an elite, legendary evaluation quiz.
 
-Your task: Create EXACTLY 20 multiple-choice questions that test deep comprehension and problem-solving, not just rote memorization.
+Your task: Create EXACTLY 10 multiple-choice questions that test deep comprehension and problem-solving, not just rote memorization.
 
 Legendary Tier Rules:
 1. **For STEM**: 80% should be practical problem-solving questions. 20% "tricky" conceptual questions checking true understanding.
@@ -821,7 +872,7 @@ Legendary Tier Rules:
 
 Constraints:
 - 100% English.
-- 6 Easy, 8 Medium, 6 Hard.
+- 3 Easy, 4 Medium, 3 Hard.
 - Synthesize explicitly based on the provided transcript.
 
 Return ONLY valid JSON:
@@ -837,7 +888,7 @@ Return ONLY valid JSON:
             { role: 'user', content: cleanedTranscript }
           ],
           temperature: 0.2,
-          max_tokens: 10000,
+          max_tokens: 4096,
           response_format: { type: 'json_object' },
         };
         return groq.chat.completions.create(opts);
@@ -847,7 +898,9 @@ Return ONLY valid JSON:
         () => callGroq(REASONING_MODEL), 
         3, 
         3000, 
-        () => callGroq(LITE_MODEL)
+        () => callGroq(LITE_MODEL),
+        () => callGroq(FALLBACK_MODEL),
+        () => callGroq(TERTIARY_MODEL)
       );
 
       const rawQuizContent = (response.choices[0].message.content || '').trim();
@@ -912,7 +965,7 @@ Return ONLY valid JSON:
 {"flashcards": [{"front": "الوجه الأمامي (مثال: لماذا يحدث كذا؟ أو ما هو قانون كذا؟)", "back": "الوجه الخلفي التفصيلي المليء بالمعلومات القيمة"}]}`
         : `You are a legendary Professor designing brilliant, hyper-effective study flashcards explicitly from the given lecture.
 
-Your task: Create 15 to 25 flashcards summarizing the deepest and most crucial parts of the transcript.
+Your task: Create 10 to 15 flashcards summarizing the deepest and most crucial parts of the transcript.
 
 Card Types (Mix intelligently):
 1. **STEM/Analytical**: Formulas, execution steps, symbols meanings, and "common pitfalls".
@@ -937,7 +990,7 @@ Return ONLY valid JSON:
             { role: 'user', content: cleanedTranscript }
           ],
           temperature: 0.2,
-          max_tokens: 10000,
+          max_tokens: 4096,
           response_format: { type: 'json_object' },
         };
         return groq.chat.completions.create(opts);
@@ -947,7 +1000,9 @@ Return ONLY valid JSON:
         () => callGroq(REASONING_MODEL), 
         3, 
         3000, 
-        () => callGroq(LITE_MODEL)
+        () => callGroq(LITE_MODEL),
+        () => callGroq(FALLBACK_MODEL),
+        () => callGroq(TERTIARY_MODEL)
       );
 
       const rawFlashContent = (response.choices[0].message.content || '').trim();

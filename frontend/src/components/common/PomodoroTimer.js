@@ -38,6 +38,8 @@ function sendNotification(title, body) {
 
 export default function PomodoroTimer() {
   const { lang } = useLanguageStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [isOpen, setIsOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
@@ -105,6 +107,8 @@ export default function PomodoroTimer() {
   const total = isBreak ? breakMinutes * 60 : workMinutes * 60;
   const progress = ((total - seconds) / total) * 100;
   const presets = [{ w: 25, b: 5, l: '25/5' }, { w: 50, b: 10, l: '50/10' }, { w: 90, b: 15, l: '90/15' }];
+
+  if (!mounted) return null;
 
   return (
     <>

@@ -68,7 +68,7 @@ exports.createInvite = async (req, res) => {
       await Notification.create({
         user: targetUserId,
         title: 'Study Room Invite',
-        message: `${req.user.name} invited you to study ${videoTitle}`,
+        message: `${req.user.username || req.user.fullName} invited you to study ${videoTitle}`,
         type: 'room_invite',
         link: `/room/${roomId}`,
         isRead: false

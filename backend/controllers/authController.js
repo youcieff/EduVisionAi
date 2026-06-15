@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sendOtpEmail } = require('../utils/sendEmail');
+const FlashcardProgress = require('../models/FlashcardProgress');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -16,10 +17,38 @@ const register = async (req, res) => {
 
     const userExists = await User.findOne({ $or: [{ email }, { username }] });
     if (userExists) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'User already exists',
-      });
+      if (userExists.email === email) {
+        // If the existing user never verified their email, we'll send a fresh OTP and allow them to continue
+        if (!userExists.isEmailVerified) {
+          const otp = crypto.randomInt(100000, 999999).toString();
+          const salt = await bcrypt.genSalt(10);
+          const hashedOtp = await bcrypt.hash(otp, salt);
+
+          userExists.otp = hashedOtp;
+          userExists.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+          await userExists.save();
+
+          // Send OTP (awaited to guarantee delivery)
+          await sendOtpEmail(email, otp, userExists.username);
+
+          return res.status(200).json({
+            status: 'success',
+            message: 'A new OTP has been sent to your email. Please verify to continue.',
+            data: { userId: userExists._id, email: userExists.email }
+          });
+        } else {
+          return res.status(400).json({
+            status: 'error',
+            message: 'User with this email already exists and is already verified. Please sign in.',
+          });
+        }
+      } else {
+        // Username taken by another email
+        return res.status(400).json({
+          status: 'error',
+          message: 'Username is already taken. Please choose another one.',
+        });
+      }
     }
 
     const otp = crypto.randomInt(100000, 999999).toString();
@@ -39,12 +68,8 @@ const register = async (req, res) => {
       isEmailVerified: false
     });
 
-    try {
-      await sendOtpEmail(user.email, otp, user.username);
-    } catch (emailError) {
-      console.error('Email Error:', emailError);
-      // Even if email fails, we register the user, they can retry
-    }
+    // Send OTP (awaited to guarantee delivery)
+    await sendOtpEmail(email, otp, username);
 
     res.status(201).json({
       status: 'success',
@@ -127,15 +152,12 @@ const resendOtp = async (req, res) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    try {
-      await sendOtpEmail(user.email, otp, user.username);
-    } catch (emailError) {
-      console.error('Email Error:', emailError);
-      return res.status(500).json({ status: 'error', message: 'Failed to send email. Please try again later.' });
-    }
+    // Send OTP (awaited to guarantee delivery)
+    await sendOtpEmail(user.email, otp, user.username);
 
     res.status(200).json({ status: 'success', message: 'OTP resent successfully' });
   } catch (error) {
+    console.error('Resend OTP Error:', error);
     res.status(500).json({ status: 'error', message: 'Server error' });
   }
 };
@@ -159,8 +181,6 @@ const login = async (req, res) => {
         message: 'Invalid email or password',
       });
     }
-
-    // Email verification is only enforced during registration flow
 
     // Get password separately
     const userWithPassword = await User.findById(user._id).select('+password');
@@ -205,6 +225,49 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+
+    // Lazy sync: XP = Points so the numbers are always consistent
+    // Points → XP → Level → Skill Points
+    const quizResults = user.quizResults || [];
+    const totalScore = quizResults.reduce((sum, q) => sum + (q.score || 0), 0);
+    const totalVideosUploaded = (user.uploadedVideos || []).length;
+    
+    // Calculate flashcard statistics (10 points per review repetition)
+    const flashcardProgress = await FlashcardProgress.find({ user: user._id });
+    const totalFlashcardReviews = flashcardProgress.reduce((sum, fp) => sum + (fp.repetitions || 0), 0);
+    
+    // Unified Gamification Formula
+    const totalPoints = (totalScore * 100) + (totalVideosUploaded * 50) + (totalFlashcardReviews * 10);
+    
+    // Sync points to database if mismatched
+    if (user.points !== totalPoints) {
+      user.points = totalPoints;
+    }
+
+    // Sync XP to Points
+    if (totalPoints > (user.xp || 0)) {
+      const prevLevel = user.level || 1;
+      user.xp = totalPoints;
+      const newLevel = Math.floor(user.xp / 1000) + 1;
+      user.level = newLevel;
+
+      const levelsGained = newLevel - prevLevel;
+      if (levelsGained > 0) {
+        user.skillPoints = (user.skillPoints || 0) + levelsGained;
+      }
+    }
+
+    // Ensure core_student is always unlocked (root of the tree)
+    if (!user.unlockedSkills || !user.unlockedSkills.includes('core_student')) {
+      if (!user.unlockedSkills) user.unlockedSkills = [];
+      if (!user.unlockedSkills.includes('core_student')) {
+        user.unlockedSkills.push('core_student');
+      }
+      await user.save();
+    } else if (totalPoints > (user.xp || 0)) {
+      // If we didn't add core_student but we did update XP/Level
+      await user.save();
+    }
     
     res.status(200).json({
       status: 'success',

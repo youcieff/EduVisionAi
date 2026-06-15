@@ -1176,3 +1176,51 @@ body, .glass, .glass-gold, .input-dark, .btn-gold, .lang-toggle, .theme-toggle, 
 .premium-gradient-focus-border:focus-within {
   box-shadow: inset 0 0 15px rgba(20, 184, 166, 0.15);
 }
+
+/* ========== COSMIC INTELLIGENCE (WORLD-CLASS AESTHETIC) ========== */
+
+@keyframes cosmic-mesh {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.4; }
+  33% { transform: translate(10%, -10%) scale(1.2) rotate(10deg); opacity: 0.6; }
+  66% { transform: translate(-10%, 15%) scale(1.1) rotate(-15deg); opacity: 0.5; }
+  100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.4; }
+}
+
+.cosmic-mesh-blob {
+  position: fixed;
+  filter: blur(120px) saturate(200%);
+  z-index: 0; /* Keep it below everything but above base bg */
+  pointer-events: none;
+  animation: cosmic-mesh 35s infinite ease-in-out;
+  border-radius: 45% 55% 70% 30% / 30% 60% 40% 70%;
+}
+
+.glow-pulse-teal {
+  box-shadow: 0 0 20px rgba(20, 184, 166, 0.2);
+  animation: glow-pulse 3s infinite ease-in-out;
+}
+
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 20px rgba(20, 184, 166, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(20, 184, 166, 0.5); }
+  100% { box-shadow: 0 0 20px rgba(20, 184, 166, 0.2); }
+}
+
+/* Futuristic Thin Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 184, 166, 0.6);
+  box-shadow: 0 0 10px rgba(20, 184, 166, 0.4);
+}
