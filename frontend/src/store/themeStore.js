@@ -3,11 +3,20 @@ import { create } from 'zustand';
 
 const getInitialTheme = () => {
   if (typeof window === 'undefined') return 'dark';
-  const stored = localStorage.getItem('eduvision-theme');
-  if (stored === 'light' || stored === 'dark') return stored;
+  try {
+    const stored = localStorage.getItem('eduvision-theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch (e) {
+    console.warn('localStorage is blocked or unavailable:', e);
+  }
+  
   // Auto-detect OS preference
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-    return 'light';
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+  } catch (e) {
+    console.warn('matchMedia is not supported or blocked:', e);
   }
   return 'dark';
 };
