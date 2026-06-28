@@ -1,6 +1,12 @@
 "use client";
 import axios from 'axios';
 import { API_URL } from '../utils/apiConfig';
+import * as demo from './demoData';
+
+const isDemoMode = typeof window !== 'undefined' && (
+  localStorage.getItem('edu-demo-mode') === 'true' ||
+  (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+);
 
 const api = axios.create({
   baseURL: API_URL,
@@ -12,6 +18,68 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    if (isDemoMode) {
+      config.adapter = async (cfg) => {
+        const url = cfg.url ? cfg.url.replace(/^\/?api/, '') : '';
+        let responseData = {};
+
+        if (url.includes('/auth/login') || url.includes('/auth/register')) {
+          responseData = { token: 'mock-token', user: demo.mockUser };
+        } else if (url.includes('/auth/me')) {
+          responseData = { user: demo.mockUser };
+        } else if (url.includes('/users/dashboard')) {
+          responseData = demo.mockDashboard;
+        } else if (url.includes('/users/leaderboard')) {
+          responseData = demo.mockLeaderboard;
+        } else if (url.includes('/users/study-recommendations')) {
+          responseData = demo.mockRecommendations;
+        } else if (url.includes('/notifications/mark-read')) {
+          responseData = { success: true };
+        } else if (url.includes('/notifications')) {
+          responseData = demo.mockNotifications;
+        } else if (url.includes('/videos/user/my-videos')) {
+          responseData = { videos: demo.mockVideos };
+        } else if (url.includes('/videos/flashcards/due')) {
+          responseData = { flashcards: demo.getMockDueFlashcards() };
+        } else if (url.includes('/videos/flashcards/review')) {
+          responseData = { success: true, message: 'Card updated' };
+        } else if (url.includes('/videos/achievements')) {
+          responseData = { achievements: [] };
+        } else if (url.includes('/videos/') && url.includes('/chat')) {
+          const match = url.match(/\/videos\/([^\/]+)\/chat/);
+          const videoId = match ? match[1] : 'vid1';
+          let msg = '';
+          try {
+            const body = JSON.parse(cfg.data);
+            msg = body.message;
+          } catch(e){}
+          responseData = demo.getMockChatReply(videoId, msg);
+        } else if (url.includes('/videos/') && url.includes('/notes')) {
+          responseData = { content: '# Study Notes (Mocked from video content)' };
+        } else if (url.includes('/videos/') && (url.includes('/like') || url.includes('/submit-quiz') || url.includes('/retry-processing'))) {
+          responseData = { success: true, status: 'processed', score: 100 };
+        } else if (url.includes('/videos/')) {
+          const match = url.match(/\/videos\/([^\/\?]+)/);
+          const videoId = match ? match[1] : 'vid1';
+          responseData = demo.mockVideoDetails[videoId] || demo.mockVideoDetails['vid1'];
+        } else if (url.includes('/videos')) {
+          responseData = { videos: demo.mockVideos };
+        } else if (url.includes('/subscription/my-usage')) {
+          responseData = { processedMinutes: 120, limitMinutes: 500, planName: 'Premium Free Showcase' };
+        } else if (url.includes('/subscription/plans')) {
+          responseData = { plans: [] };
+        }
+
+        return {
+          data: responseData,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: cfg,
+        };
+      };
+    }
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
