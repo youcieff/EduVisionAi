@@ -11,6 +11,27 @@ const nextConfig = {
       { protocol: 'https', hostname: 'i.ytimg.com', pathname: '/**' },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
     return [
