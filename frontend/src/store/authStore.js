@@ -3,22 +3,60 @@ import { create } from 'zustand';
 import { authAPI } from '../api/api';
 import toast from 'react-hot-toast';
 
-const getSafeUser = () => {
-  if (typeof window === 'undefined') return null;
+const isDemoMode = typeof window !== 'undefined' && (
+  localStorage.getItem('edu-demo-mode') === 'true' ||
+  (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+);
+
+const mockUser = {
+  id: 'demo-user',
+  username: 'Guest Student',
+  email: 'guest@eduvision.ai',
+  role: 'admin',
+  subscription: 'premium',
+  createdAt: '2026-06-25T12:00:00.000Z'
+};
+
+const getInitialAuthState = () => {
+  if (typeof window === 'undefined') {
+    return { user: null, token: null, isAuthenticated: false };
+  }
+
+  if (isDemoMode) {
+    if (!localStorage.getItem('token')) {
+      localStorage.setItem('token', 'mock-token');
+    }
+    if (!localStorage.getItem('user')) {
+      localStorage.setItem('user', JSON.stringify(mockUser));
+    }
+    return {
+      user: mockUser,
+      token: 'mock-token',
+      isAuthenticated: true
+    };
+  }
+
   try {
-    const stored = localStorage.getItem('user');
-    if (!stored || stored === 'undefined') return null;
-    return JSON.parse(stored);
+    const token = localStorage.getItem('token') || null;
+    const storedUser = localStorage.getItem('user');
+    const user = (storedUser && storedUser !== 'undefined') ? JSON.parse(storedUser) : null;
+    return {
+      user,
+      token,
+      isAuthenticated: !!token
+    };
   } catch (e) {
-    console.error('Error parsing user from localStorage:', e);
-    return null;
+    console.error('Error parsing auth state:', e);
+    return { user: null, token: null, isAuthenticated: false };
   }
 };
 
+const initialState = getInitialAuthState();
+
 const useAuthStore = create((set) => ({
-  user: getSafeUser(),
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') || null : null,
-  isAuthenticated: typeof window !== 'undefined' ? !!localStorage.getItem('token') : false,
+  user: initialState.user,
+  token: initialState.token,
+  isAuthenticated: initialState.isAuthenticated,
   loading: false,
 
   register: async (userData) => {
