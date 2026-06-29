@@ -6,7 +6,7 @@ export const mockUser = {
   id: 'demo-user',
   username: 'Guest Student',
   email: 'guest@eduvision.ai',
-  role: 'admin',
+  role: 'user',
   subscription: 'premium',
   createdAt: '2026-06-25T12:00:00.000Z'
 };
@@ -58,44 +58,148 @@ export const mockNotifications = {
 
 export const mockVideos = [
   {
-    _id: 'vid1',
-    title: 'Introduction to Artificial Intelligence (AI) for Beginners',
-    duration: '09:45',
-    thumbnail: 'https://img.youtube.com/vi/2ePf9rue1Ao/0.jpg',
-    youtubeId: '2ePf9rue1Ao',
-    source: 'youtube',
-    status: 'processed',
-    createdAt: '2026-06-27T10:00:00.000Z',
-    likes: 12,
-    byUser: 'demo-user'
+    _id: '6a2cbe8fb9e8657651b03fdf',
+    title: 'ALL OF MATH explained in 14 minutes',
+    duration: '14:09',
+    thumbnail: 'https://i.ytimg.com/vi_webp/1srQ7Mq_ToI/maxresdefault.webp',
+    originalUrl: 'https://youtu.be/1srQ7Mq_ToI',
+    sourceType: 'video',
+    processingStatus: 'completed',
+    createdAt: '2026-06-13T02:21:03.291Z',
+    views: 6,
+    likes: [],
+    isPublic: true
   },
   {
-    _id: 'vid2',
-    title: 'React 19 & Next.js 15: Clean Architecture Principles',
-    duration: '12:20',
-    thumbnail: 'https://img.youtube.com/vi/8aGhZQkoFbQ/0.jpg',
-    youtubeId: '8aGhZQkoFbQ',
-    source: 'youtube',
-    status: 'processed',
-    createdAt: '2026-06-28T09:30:00.000Z',
-    likes: 8,
-    byUser: 'demo-user'
+    _id: '6a2cb0d6da49ab8966f030d6',
+    title: '00 - Oracle Database - Introduction and Installation - شرح قواعد بيانات',
+    duration: null,
+    thumbnail: 'https://i.ytimg.com/vi/7GsfAfQPc9o/hqdefault.jpg?sqp=-oaymwEXCNACELwBSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLD73tRiAy-LfakcNb8IoZTx8lliCw',
+    originalUrl: 'https://www.youtube.com/watch?v=7GsfAfQPc9o&list=PLsfs9DojDVqOVtJiWhUZ2yKWTbQqcbmEF',
+    sourceType: 'video',
+    processingStatus: 'completed',
+    createdAt: '2026-06-13T01:22:30.922Z',
+    views: 1,
+    likes: [],
+    isPublic: true
   },
   {
-    _id: 'vid3',
-    title: 'How ChatGPT and LLMs Work Under the Hood',
-    duration: '15:10',
-    thumbnail: 'https://img.youtube.com/vi/5sLYAJKMV-I/0.jpg',
-    youtubeId: '5sLYAJKMV-I',
-    source: 'youtube',
-    status: 'processed',
-    createdAt: '2026-06-28T18:15:00.000Z',
-    likes: 24,
-    byUser: 'demo-user'
+    _id: '6a2caba5ffd0bb84e2c45e5d',
+    title: '06- من ERD إلى جداول: خطوات الـ Mapping بالتفصيل',
+    duration: null,
+    thumbnail: 'https://i.ytimg.com/vi/YuRmghkoaRI/hqdefault.jpg?sqp=-oaymwEXCNACELwBSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLBwUoidbc8Mic27y89SYUBzaSfVog',
+    originalUrl: 'https://www.youtube.com/watch?v=YuRmghkoaRI&list=PLuvT-i95N7yXeYtYgkfPaHbMgUzk_aYN9',
+    sourceType: 'video',
+    processingStatus: 'completed',
+    createdAt: '2026-06-13T01:00:00.000Z',
+    views: 0,
+    likes: [],
+    isPublic: true
   }
 ];
 
 export const mockVideoDetails = {
+  '6a2cbe8fb9e8657651b03fdf': {
+    _id: '6a2cbe8fb9e8657651b03fdf',
+    title: 'ALL OF MATH explained in 14 minutes',
+    duration: 849,
+    originalUrl: 'https://youtu.be/1srQ7Mq_ToI',
+    thumbnail: 'https://i.ytimg.com/vi_webp/1srQ7Mq_ToI/maxresdefault.webp',
+    processingStatus: 'completed',
+    views: 6, likes: [], isPublic: true,
+    createdAt: '2026-06-13T02:21:03.291Z',
+    summary: `## All of Math — Summary\n\nThis video takes you from the basics of numbers and equations all the way to calculus and probability.\n\n### Topics Covered\n1. **Equations** — Linear, Quadratic, Polynomial and Exponential. Goal: isolate variables from constants.\n2. **Shapes & Geometry** — Area (B×H), Volume, Pythagorean theorem.\n3. **Trigonometry** — sin, cos, tan and the unit circle. Radians and degrees.\n4. **Calculus** — Limits, derivatives (power rule), integrals (antiderivatives).\n5. **Probability** — P(event) = favorable / total. Rules: 0 ≤ P ≤ 1, sum of all outcomes = 1.`,
+    keyPoints: [
+      'Infinity consists of numbers, signs and symbols.',
+      'Constants are fixed; variables are unknown letters.',
+      'Quadratic equations have one variable raised to power 2.',
+      'Polynomial equations can have variables to any power.',
+      'Area formula base: B × H (circles use πr²).',
+      'The Pythagorean theorem: hypotenuse² = a² + b².',
+      'sin/cos/tan relate triangle sides to angles.',
+      'Derivatives measure rate of change (power rule: d/dx xⁿ = nxⁿ⁻¹).',
+      'Integrals calculate area under curves.',
+      'P(event) = favorable outcomes / total outcomes.'
+    ],
+    questions: [
+      { question: 'What is the primary goal of solving an equation?', options: ['To find the value of a constant', 'To isolate the variable from the constants', 'To determine the type of equation', 'To simplify the equation'], correctAnswer: '1', explanation: 'Solving an equation means rearranging it to isolate the variable and determine its value.', difficulty: 'medium' },
+      { question: 'What is the formula for the area of a circle?', options: ['A = B × H', 'A = π × r²', 'A = 2 × π × r', 'A = r × h'], correctAnswer: '1', explanation: 'Circle area = π × r² where r is the radius.', difficulty: 'medium' },
+      { question: 'What is the derivative of x³?', options: ['x²', '3x²', '3x', 'x⁴/4'], correctAnswer: '1', explanation: 'By the power rule: d/dx xⁿ = nxⁿ⁻¹, so d/dx x³ = 3x².', difficulty: 'medium' },
+      { question: 'The sin function gives the ratio of which two sides?', options: ['Adjacent / Hypotenuse', 'Opposite / Adjacent', 'Opposite / Hypotenuse', 'Hypotenuse / Adjacent'], correctAnswer: '2', explanation: 'sin(θ) = Opposite / Hypotenuse.', difficulty: 'medium' },
+      { question: 'What is the probability rule for complementary events?', options: ['P(A\') = 1 + P(A)', 'P(A\') = 1 - P(A)', 'P(A\') = P(A) - 1', 'P(A\') = P(A)'], correctAnswer: '1', explanation: 'The complement rule: P(not A) = 1 - P(A).', difficulty: 'medium' }
+    ],
+    flashcards: [
+      { _id: 'fc_math1', front: 'What are the two main types of equations?', back: 'Linear and Non-linear (quadratic & polynomial).' },
+      { _id: 'fc_math2', front: 'What is the goal of solving an equation?', back: 'To isolate the variable and find its value using inverse operations.' },
+      { _id: 'fc_math3', front: 'What is the formula for area of a shape?', back: 'Base × Height (B × H), with adjustments per shape (e.g. circles: πr²).' },
+      { _id: 'fc_math4', front: 'What is trigonometry?', back: 'The study of angles and side-length ratios in triangles using sin, cos and tan.' },
+      { _id: 'fc_math5', front: 'What is the unit circle?', back: 'A circle with radius 1 used to define sin, cos and tan across all angles.' },
+      { _id: 'fc_math6', front: 'What does a derivative measure?', back: 'The instantaneous rate of change (slope) of a function at a given point.' },
+      { _id: 'fc_math7', front: 'What is the power rule for derivatives?', back: 'If f(x) = xⁿ, then f\'(x) = n·xⁿ⁻¹.' },
+      { _id: 'fc_math8', front: 'What does an integral calculate?', back: 'The area under a curve — the accumulation of a function over an interval.' },
+      { _id: 'fc_math9', front: 'What is the probability of an event?', back: 'P(event) = (number of favorable outcomes) / (total possible outcomes).' },
+      { _id: 'fc_math10', front: 'Explain the Pythagorean theorem.', back: 'In a right triangle: hypotenuse² = adjacent² + opposite².' }
+    ]
+  },
+  '6a2cb0d6da49ab8966f030d6': {
+    _id: '6a2cb0d6da49ab8966f030d6',
+    title: '00 - Oracle Database - Introduction and Installation - شرح قواعد بيانات',
+    duration: null,
+    originalUrl: 'https://www.youtube.com/watch?v=7GsfAfQPc9o&list=PLsfs9DojDVqOVtJiWhUZ2yKWTbQqcbmEF',
+    thumbnail: 'https://i.ytimg.com/vi/7GsfAfQPc9o/hqdefault.jpg',
+    processingStatus: 'completed',
+    views: 1, likes: [], isPublic: true,
+    createdAt: '2026-06-13T01:22:30.922Z',
+    summary: `## Oracle Database — مقدمة وتثبيت\n\nيشرح هذا الفيديو الأساسيات الكاملة لقواعد البيانات ابتداءً من تصنيف البيانات وصولاً إلى إنشاء الجداول باستخدام SQL.\n\n### محاور الفيديو\n1. **تصنيف البيانات** — Structured (علائقية) و Semi-Structured و Unstructured.\n2. **الديتابيز العلائقي** — مفهوم الجداول والأعمدة والصفوف والـ Primary/Foreign Keys.\n3. **لغة SQL** — تاريخها وأنواع الجمل (DML, DDL, DCL, TCL).\n4. **أوراكل** — استخدام Oracle Application Express وتنفيذ جمل SELECT بسيطة.`,
+    keyPoints: [
+      'البيانات تُصنَّف إلى Structured وSemi-Structured وUnstructured.',
+      'الديتابيز العلائقي يعتمد على جداول مترابطة بـ Primary/Foreign Keys.',
+      'لغة SQL وُضعت معايير ANSI عام 1970 بواسطة Dr. E.F. Codd.',
+      'DML تشمل SELECT وINSERT وUPDATE وDELETE.',
+      'DDL تشمل CREATE وALTER وDROP.',
+      'Oracle Application Express يُتيح تنفيذ SQL عبر المتصفح.'
+    ],
+    questions: [
+      { question: 'ما هي أنواع البيانات الثلاثة الرئيسية؟', options: ['Structured و JSON و CSV', 'Structured و Semi-Structured و Unstructured', 'SQL و NoSQL و NewSQL', 'Integer و String و Boolean'], correctAnswer: '1', explanation: 'البيانات تُصنَّف إلى Structured (جداول) وSemi-Structured (JSON/XML) وUnstructured (صور ونصوص حرة).', difficulty: 'medium' },
+      { question: 'ما وظيفة الـ Primary Key؟', options: ['ربط جدولين معاً', 'تعريف نوع البيانات', 'تمييز كل صف بشكل فريد', 'حذف الصفوف المكررة'], correctAnswer: '2', explanation: 'Primary Key يُعرَّف بأنه Uniquely Identified Rule — يُميّز كل صف في الجدول.', difficulty: 'medium' },
+      { question: 'ما هو اختصار DBMS؟', options: ['Data Base Management System', 'Digital Binary Management Software', 'Database Backup and Migration Service', 'Data Business Mapping Standard'], correctAnswer: '0', explanation: 'DBMS = Database Management System — البرنامج المستخدم لإدارة قواعد البيانات.', difficulty: 'medium' }
+    ],
+    flashcards: [
+      { _id: 'fc_ora1', front: 'ما الفرق بين DML و DDL؟', back: 'DML: تعديل البيانات (SELECT, INSERT, UPDATE, DELETE). DDL: تعريف الهيكل (CREATE, ALTER, DROP).' },
+      { _id: 'fc_ora2', front: 'ما هو الـ ERD؟', back: 'Entity Relationship Diagram — رسم بياني يوضح كيانات قاعدة البيانات وعلاقاتها.' },
+      { _id: 'fc_ora3', front: 'ما هو الـ Foreign Key؟', back: 'مفتاح في جدول يشير إلى Primary Key في جدول آخر لإنشاء العلاقة بينهما.' },
+      { _id: 'fc_ora4', front: 'ما هي أنواع العلاقات بين الجداول؟', back: 'One-to-One و One-to-Many و Many-to-Many.' },
+      { _id: 'fc_ora5', front: 'ما هو SQL؟', back: 'Structured Query Language — لغة الاستعلام المعيارية للتعامل مع قواعد البيانات العلائقية.' }
+    ]
+  },
+  '6a2caba5ffd0bb84e2c45e5d': {
+    _id: '6a2caba5ffd0bb84e2c45e5d',
+    title: '06- من ERD إلى جداول: خطوات الـ Mapping بالتفصيل',
+    duration: null,
+    originalUrl: 'https://www.youtube.com/watch?v=YuRmghkoaRI&list=PLuvT-i95N7yXeYtYgkfPaHbMgUzk_aYN9',
+    thumbnail: 'https://i.ytimg.com/vi/YuRmghkoaRI/hqdefault.jpg',
+    processingStatus: 'completed',
+    views: 0, likes: [], isPublic: true,
+    createdAt: '2026-06-13T01:00:00.000Z',
+    summary: `## من ERD إلى جداول — الـ Mapping بالتفصيل\n\nيشرح الفيديو كيفية تحويل الـ Conceptual Schema (ERD) إلى Logical Schema جاهزة للتنفيذ في قاعدة البيانات.\n\n### الخطوات\n1. **Conceptual Schema** — رسم الـ ERD (Entities, Attributes, Relationships).\n2. **Logical Schema** — تحديد Primary Keys وForeign Keys وأنواع البيانات.\n3. **Mapping القواعد** — تحويل كل Entity لجدول، وتحديد العلاقات (1:1, 1:N, M:N).\n4. **التطبيق** — تحويل النماذج الورقية إلى SQL CREATE TABLE.`,
+    keyPoints: [
+      'الـ Conceptual Schema هي رسم ERD بكيانات وعلاقات.',
+      'الـ Logical Schema تضيف Primary/Foreign Keys وأنواع البيانات.',
+      'علاقة 1:1 — صف واحد في جدول يرتبط بصف واحد في جدول آخر.',
+      'علاقة 1:N — صف واحد يرتبط بصفوف متعددة.',
+      'علاقة M:N تحتاج جدولاً وسيطاً (Junction Table).',
+      'الـ Foreign Key يُوضع في جانب الـ Many.'
+    ],
+    questions: [
+      { question: 'ما الفرق بين Conceptual Schema و Logical Schema؟', options: ['الـ Conceptual هي SQL والـ Logical هي ERD', 'الـ Conceptual هي ERD بدون تفاصيل أنواع البيانات، والـ Logical تضيف هذه التفاصيل', 'لا فرق بينهما', 'الـ Logical هي مرحلة التثبيت فقط'], correctAnswer: '1', explanation: 'الـ Conceptual Schema (ERD) توضح الكيانات والعلاقات. الـ Logical Schema تُضيف Primary/Foreign Keys وأنواع البيانات.', difficulty: 'medium' },
+      { question: 'أين يُوضع الـ Foreign Key في علاقة One-to-Many؟', options: ['في جدول الـ One', 'في جدول الـ Many', 'في جدول وسيط جديد', 'في كلا الجدولين'], correctAnswer: '1', explanation: 'في علاقة 1:N يُؤخذ Primary Key من جانب الـ One ويُوضع كـ Foreign Key في جانب الـ Many.', difficulty: 'medium' }
+    ],
+    flashcards: [
+      { _id: 'fc_erd1', front: 'ما هو الـ Mapping في تصميم قواعد البيانات؟', back: 'تحويل الـ ERD (Conceptual Schema) إلى Logical Schema جاهزة للتنفيذ.' },
+      { _id: 'fc_erd2', front: 'ماذا تعني علاقة Many-to-Many؟', back: 'كل صف في الجدول الأول يمكن أن يرتبط بصفوف متعددة في الجدول الثاني والعكس — تحتاج جدولاً وسيطاً.' },
+      { _id: 'fc_erd3', front: 'ما هو Business Analyst؟', back: 'الشخص المسؤول عن استخراج متطلبات العميل (Requirement Gathering) وإعداد وثيقة SRS.' }
+    ]
+  },
   'vid1': {
     _id: 'vid1',
     title: 'Introduction to Artificial Intelligence (AI) for Beginners',
@@ -317,6 +421,9 @@ export const getMockDueFlashcards = () => {
 
 export const getMockChatReply = (videoId, message) => {
   const titles = {
+    '6a2cbe8fb9e8657651b03fdf': 'ALL OF MATH explained in 14 minutes',
+    '6a2cb0d6da49ab8966f030d6': 'Oracle Database Introduction',
+    '6a2caba5ffd0bb84e2c45e5d': 'ERD Mapping في قواعد البيانات',
     'vid1': 'Introduction to Artificial Intelligence',
     'vid2': 'Next.js 15 Clean Architecture',
     'vid3': 'How LLMs Work Under the Hood'

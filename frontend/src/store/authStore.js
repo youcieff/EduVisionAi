@@ -12,7 +12,7 @@ const mockUser = {
   id: 'demo-user',
   username: 'Guest Student',
   email: 'guest@eduvision.ai',
-  role: 'admin',
+  role: 'user',
   subscription: 'premium',
   createdAt: '2026-06-25T12:00:00.000Z'
 };
